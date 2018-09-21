@@ -1,0 +1,23 @@
+<ROSETTASCRIPTS>
+    <SCOREFXNS>
+        <ScoreFunction name="hard_cart" weights="beta_cart"/>
+    </SCOREFXNS>
+    
+    <TASKOPERATIONS>
+    </TASKOPERATIONS>
+    
+    <FILTERS>
+    </FILTERS>
+    
+    <MOVERS>
+        <SimpleThreadingMover name="thread" start_position="%%start%%" thread_sequence="%%seq%%" />
+        <FastRelax name="relax" scorefxn="hard_cart" cartesian="true"/>
+    </MOVERS>
+    
+
+    <PROTOCOLS>
+        <Add mover="thread"/>
+        <Add mover="relax"/>
+    </PROTOCOLS>
+
+</ROSETTASCRIPTS>

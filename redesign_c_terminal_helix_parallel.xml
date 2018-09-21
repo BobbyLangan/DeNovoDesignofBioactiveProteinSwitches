@@ -1,0 +1,285 @@
+<ROSETTASCRIPTS>
+    <SCOREFXNS>
+        <ScoreFunction name="hard" weights="beta"/>
+    </SCOREFXNS>
+    
+    <RESIDUE_SELECTORS>
+        <Chain name="peptide" chains="B"/>
+        <Chain name="SB76_trunc" chains="A"/>
+        <And name="scaffold_interface">
+            <InterfaceByVector>
+                <Chain chains="A"/>
+                <Chain chains="B"/>
+            </InterfaceByVector>
+            <Chain chains="A"/>
+        </And>
+        
+        <And name="main_scaffold">
+            <Not selector="scaffold_interface"/>
+            <Chain chains="A"/>
+        </And>
+        
+        <And name="peptide_interface">
+            <InterfaceByVector>
+                <Chain chains="A"/>
+                <Chain chains="B"/>
+            </InterfaceByVector>
+            <Chain chains="B"/>
+        </And>
+    </RESIDUE_SELECTORS>
+    
+    <TASKOPERATIONS>
+        
+        <OperateOnResidueSubset name="repack_new" selector="main_scaffold">
+            <PreventRepackingRLT/>
+        </OperateOnResidueSubset>
+        
+    </TASKOPERATIONS>
+    
+    <MOVERS>
+        <SwitchChainOrder name="rechain" chain_order="12"/>
+        
+	<HBNetStapleInterface scorefxn="hard" name="hbnet" start_selector="peptide_interface" design_residues="HYNQST" task_operations="repack_new" hb_threshold="-0.5" minimize="true" show_task="true" verbose="false" min_connectivity="0.6" min_helices_contacted_by_network="3" min_networks_per_pose="2" max_networks_per_pose="3" min_network_size="3" min_core_res="2" max_unsat="3" max_replicates_before_branch="3" use_aa_dependent_weights="true" write_network_pdbs="false" write_cst_files="false"/>
+        
+        <BundleGridSampler name="bgs" use_degrees="true" helix_length="56" scorefxn="hard" crick_params_file="alpha_helix_100" set_bondlengths="true" set_bondangles="true" set_dihedrals="true" dump_pdbs="false" reset="false" max_samples="1000000000" nstruct_mode="true">
+            <Helix invert="true" delta_omega0="-60" delta_omega1_min="0" delta_omega1_max="340" delta_omega1_samples="18" r0_min="12.5" r0_max="13.5" r0_samples="3" z1_offset_min="0" z1_offset_max=".75" z1_offset_samples="2" delta_t="-22"/>
+        </BundleGridSampler>
+        
+        <MultiplePoseMover name="switch_peptide_design_MPM" max_input_poses="100">
+            <ROSETTASCRIPTS>
+                <SCOREFXNS>
+                    <ScoreFunction name="hard" weights="beta"/>
+                    <ScoreFunction name="hard_cart" weights="beta_cart"/>
+                    <ScoreFunction name="soft_cst" weights="/gscratch/baker/rlangan/weights/beta_soft_rep_cst.wts"/>
+                    <ScoreFunction name="hard_cst" weights="beta_cst"/>
+                    <ScoreFunction name="up_ele" weights="beta" >
+                        <Reweight scoretype="fa_elec" weight="1.4" />
+                        <Reweight scoretype="hbond_sc" weight="2.0" />
+                    </ScoreFunction>
+                </SCOREFXNS>
+                
+                <RESIDUE_SELECTORS>
+                    <Layer name="hbnet_core" select_core="true" core_cutoff="3.6" />
+                    <And name="terminal_loop">
+                        <SecondaryStructure ss="L" include_terminal_loops="true" use_dssp="true"/>
+                        <Index resnums="1-15"/>
+                        <Chain chains="A"/>
+                    </And>
+                    
+                    <Layer name="pick_core_and_boundary" select_core="true" select_boundary="true" core_cutoff="5.2"/>
+                    <Layer name="pick_core_and_surface" select_core="true" select_surface="true" core_cutoff="5.2"/>
+                    <Layer name="pick_surface_and_boundary" select_surface="true" select_boundary="true" core_cutoff="5.2"/>
+                    <Chain name="chain_a" chains="A"/>
+                    <Layer name="core" select_core="true" core_cutoff="5.2" />
+                    <ResidueName name="ala_and_met" residue_name3="ALA,MET" />
+                    <Not name="not_ala_or_met" selector="ala_and_met" />
+                    <!-- 	<ResiduePDBInfoHasLabel name="hbnet_residues" property="HBNet" /> -->
+                    
+                    <And name="scaffold_interface">
+                        <InterfaceByVector>
+                            <Chain chains="A"/>
+                            <Chain chains="B"/>
+                        </InterfaceByVector>
+                        <Chain chains="A"/>
+		    </And>
+                    
+		    <Index name="design_away" resnums="9,27,45,254,272,290"/>
+
+                      <And name="main_scaffold">
+                        <Not selector="scaffold_interface"/>
+                        <Chain chains="A"/>
+			<Not selector="design_away"/>
+		      </And>
+		    
+		    
+                    
+                    <SecondaryStructure name="loops" ss="L"/>
+                    <Neighborhood name="neighbors" selector="loops" distance="6"/>
+                    <Not name="not_redesign">
+                        <And>
+                            <ResidueName residue_names="VAL"/>
+                            <Chain chains="B"/>
+                        </And>
+                    </Not>
+                    
+                </RESIDUE_SELECTORS>
+                
+                <TASKOPERATIONS>
+                    <ConsensusLoopDesign name="disallow_non_abego_aas"/>
+                    
+                    <LayerDesign name="layer_all" layer="core_boundary_surface_Nterm_Cterm" make_pymol_script="0" use_sidechain_neighbors="True" core="4.2" >
+                        <core>
+                            Helix append="M" />
+                            <Helix exclude="WY" />
+                        </core>
+                        <boundary>
+                            <Helix exclude="WMY" />
+                        </boundary>
+                        <surface>
+                            <Helix append="A"/>
+                        </surface>
+                    </LayerDesign>
+                    
+                    <OperateOnResidueSubset name="loop_design" selector="not_redesign">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    
+                    <OperateOnResidueSubset name="repack_new" selector="main_scaffold">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    
+                    <OperateOnResidueSubset name="design_core" selector="pick_surface_and_boundary">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    
+                    <OperateOnResidueSubset name="design_boundary" selector="pick_core_and_surface">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    
+                    <OperateOnResidueSubset name="design_surface" selector="pick_core_and_boundary">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    
+                    <OperateOnResidueSubset name="repack_not_ala_or_met" selector="not_ala_or_met" >
+                        <RestrictToRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    
+                    <OperateOnResidueSubset name="redesign_ala_met" selector="ala_and_met" >
+                        <RestrictAbsentCanonicalAASRLT aas="AMILVF" />
+                    </OperateOnResidueSubset>
+                    
+                    <InitializeFromCommandline name="init"/>
+                    <ConstrainHBondNetwork name="hbnet_task" />
+                    <IncludeCurrent name="current"/>
+                    <LimitAromaChi2 name="arochi" />
+                    <ExtraRotamersGeneric name="ex1_ex2" ex1="1" ex2="1"/>
+                    <ExtraRotamersGeneric name="ex1" ex1="1"/>
+                    <RestrictAbsentCanonicalAAS name="ala_only" resnum="0" keep_aas="A" />
+                    <RestrictToRepacking name="repack_only"/>
+                    
+                    BundleReporter name=bundle_filter scorefxn=hard/>
+                    
+                </TASKOPERATIONS>
+                
+                <MOVERS>
+                    <PackRotamersMover name="softpack_core" scorefxn="soft_cst" task_operations="layer_all,design_core,current,arochi,disallow_non_abego_aas,repack_new,hbnet_task"/>
+                    <PackRotamersMover name="softpack_boundary" scorefxn="soft_cst" task_operations="layer_all,design_boundary,current,arochi,disallow_non_abego_aas,repack_new,hbnet_task"/>
+                    <PackRotamersMover name="softpack_surface" scorefxn="soft_cst" task_operations="layer_all,design_surface,current,arochi,disallow_non_abego_aas,repack_new,hbnet_task"/>
+                    
+                    <PackRotamersMover name="hardpack_core" scorefxn="hard_cst" task_operations="layer_all,design_core,current,arochi,ex1_ex2,disallow_non_abego_aas,repack_new,hbnet_task"/>
+                    <PackRotamersMover name="hardpack_boundary" scorefxn="hard_cst" task_operations="layer_all,design_boundary,current,arochi,ex1_ex2,disallow_non_abego_aas,repack_new,hbnet_task"/>
+                    <PackRotamersMover name="hardpack_surface" scorefxn="up_ele" task_operations="layer_all,design_surface,current,arochi,ex1,disallow_non_abego_aas,repack_new,hbnet_task"/>
+                    
+                    <PackRotamersMover name="design_loops" scorefxn="hard_cst" task_operations="current,arochi,ex1_ex2,loop_design,layer_all,disallow_non_abego_aas,hbnet_task"/>
+                    <DumpPdb name="dump1" fname="dump1.pdb" scorefxn="hard"/>
+                    
+                    ConnectChainsMover name=closer chain_connections="[A+B],[B+A]"/>
+                    
+                    InterfaceAnalyzerMover name=interface_analyzer scorefxn=hard packstat=1 pack_separated=0 />
+                    
+                    <MinMover name="hardmin_sconly" scorefxn="hard_cst" chi="1" bb="0" bondangle="0" bondlength="0" />
+                </MOVERS>
+                
+                <PROTOCOLS>
+                    <Add mover="softpack_core"/>
+                    <Add mover="softpack_boundary"/>
+                    <Add mover="softpack_surface"/>
+                    <Add mover="hardmin_sconly"/>
+                    <Add mover="hardpack_core"/>
+                    <Add mover="hardpack_boundary"/>
+                    <Add mover="hardpack_surface"/>
+                    Add mover=interface_analyzer/>
+                    Add mover=dump1/>
+                    Add mover=closer/>
+                    Add mover=design_loops/>
+                </PROTOCOLS>
+            </ROSETTASCRIPTS>
+        </MultiplePoseMover>
+        
+        <MultiplePoseMover name="MPM_filters">
+            <ROSETTASCRIPTS>
+                <SCOREFXNS>
+                    <ScoreFunction name="hard_cst" weights="beta_cst"/>
+                </SCOREFXNS>
+                <RESIDUE_SELECTORS>
+                    <Chain name="peptide" chains="B"/>
+                    <Chain name="SB76_trunc" chains="A"/>
+                    <InterfaceByVector name="scaffold_interface">
+                        <Chain chains="A"/>
+                        <Not selector="SB76_trunc"/>
+                    </InterfaceByVector>
+                    
+                </RESIDUE_SELECTORS>
+                
+                <TASKOPERATIONS>
+                    <LayerDesign name="layer_all" layer="core_boundary_surface_Nterm_Cterm" make_pymol_script="0" use_sidechain_neighbors="True" core="5.2" >
+                        <core>
+                            Helix append="M" />
+                            <Helix exclude="WY" />
+                        </core>
+                        <boundary>
+                            <Helix exclude="DWMY" />
+                        </boundary>
+                        <surface>
+                            <Helix append="A"/>
+                        </surface>
+                    </LayerDesign>
+                </TASKOPERATIONS>
+                
+                <FILTERS>
+                    <PreProline name="prepro" use_statistical_potential="0" />
+                    <ScoreType name="scorefilter" scorefxn="hard_cst" score_type="total_score" threshold="0.0" confidence="1" />
+                    <EnzScore name="cst_score" score_type="cstE" scorefxn="hard_cst" whole_pose="1" energy_cutoff="5" confidence="1"/>
+                    <BuriedUnsatHbonds3 name="buns3" scorefxn="beta" cutoff="20" print_out_info_to_pdb="true" use_hbnet_behavior="true" confidence="0" ignore_bb_heavy_unsats="true"/>
+                    <ResidueCount name="ala_count" max_residue_count="15" residue_types="ALA" residue_selector="scaffold_interface" confidence="1"/>
+                </FILTERS>
+                
+                <PROTOCOLS>
+                    Add filter=prepro/>
+                    <Add filter="scorefilter"/>
+                    <Add filter="cst_score"/>
+                    <Add filter="ala_count"/>
+                    <Add filter="buns3"/>
+                </PROTOCOLS>
+            </ROSETTASCRIPTS>
+        </MultiplePoseMover>
+        
+        <MultiplePoseMover name="analyze">
+            <ROSETTASCRIPTS>
+                
+                <SCOREFXNS>
+                    ### add Nov15 energy function with coordinate constraints
+                    <ScoreFunction name="NOV15" weights="beta" />
+                </SCOREFXNS>
+                
+                <TASKOPERATIONS>
+                </TASKOPERATIONS>
+                
+                <RESIDUE_SELECTORS>
+                </RESIDUE_SELECTORS>
+                
+                <FILTERS>
+                </FILTERS>
+                
+                <MOVERS>
+                    <InterfaceAnalyzerMover name="interface_analyzer" scorefxn="NOV15" packstat="true" interface_sc="true" pack_input="false" pack_separated="true" fixedchains="B" tracer="true" />
+                </MOVERS>
+                
+                <PROTOCOLS>
+                    <Add mover_name="interface_analyzer" />
+                </PROTOCOLS>
+                
+            </ROSETTASCRIPTS>
+        </MultiplePoseMover>
+        
+    </MOVERS>
+    <PROTOCOLS>
+        <Add mover="bgs"/>
+        <Add mover="rechain"/>
+        <Add mover="hbnet"/>
+        Add mover=relax_new_interface/>
+        <Add mover="switch_peptide_design_MPM"/>
+        <Add mover="MPM_filters"/>
+        Add mover=analyze/>
+    </PROTOCOLS>
+</ROSETTASCRIPTS>
